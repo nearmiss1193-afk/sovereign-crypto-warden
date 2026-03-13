@@ -1,0 +1,11 @@
+﻿Authenticating...
+Auth Success. Fetching open positions...
+
+Testing: https://demo.tradelocker.com/backend-api/trade/accounts/2001074/positions
+Error: 'charmap' codec can't encode character '\u274c' in position 0: character maps to <undefined>
+
+Testing: https://demo.tradelocker.com/backend-api/trade/positions?accountId=2001074
+Error: 'charmap' codec can't encode character '\u274c' in position 0: character maps to <undefined>
+
+Testing: https://demo.tradelocker.com/backend-api/trade/accounts/2001074/positions/open
+Error: 'charmap' codec can't encode character '\u274c' in position 0: character maps to <undefined>

@@ -1,0 +1,85 @@
+// ============================================================
+//  SOVEREIGN PRIME — FOREX ICT SIGNAL ALERT
+//  Pine Script v5
+//  ICT Silver Bullet + FVG + MSS + HTF Bias
+//  Fires webhook to: https://sovereign-prime-forex.onrender.com/api/signals/live
+// ============================================================
+
+//@version=5
+indicator("Sovereign Prime — Forex ICT Signal", overlay=true, max_bars_back=500)
+
+// ── INPUTS ────────────────────────────────────────────────
+show_fvg        = input.bool(true,  "Show FVGs")
+show_sb_window  = input.bool(true,  "Show Silver Bullet Windows")
+conf_threshold  = input.int(72,     "Min Confidence %", minval=50, maxval=100)
+stop_pips       = input.int(12,     "Default Stop (pips)", minval=3, maxval=50)
+account_id      = input.string("dna_funded", "Account ID",
+                    options=["dna_funded", "oanda_practice"])
+
+// ── SESSION WINDOWS ───────────────────────────────────────
+// Silver Bullet AM:  03:00–04:00 ET
+// Silver Bullet PM:  10:00–11:00 ET
+// London Open:       02:00–05:00 ET
+// NY Open:           08:00–11:00 ET
+
+et_offset = -5  // ET = UTC-5 (adjust to -4 during DST)
+
+sb_am_start = 3  + (-et_offset)  // 3 ET → 8 UTC
+sb_am_end   = 4  + (-et_offset)
+sb_pm_start = 10 + (-et_offset)
+sb_pm_end   = 11 + (-et_offset)
+
+in_sb_am = (hour(time, "UTC") == sb_am_start) or
+           (hour(time, "UTC") == sb_am_start + 0 and minute(time, "UTC") < 60)
+in_sb_pm = (hour(time, "UTC") >= sb_pm_start and hour(time, "UTC") < sb_pm_end)
+in_sb     = in_sb_am or in_sb_pm
+
+session_name = in_sb_am ? "London Silver Bullet" :
+               in_sb_pm ? "NY Silver Bullet"     : "Outside Silver Bullet"
+
+// ── FVG DETECTION ─────────────────────────────────────────
+// Bullish FVG: low[0] > high[2]  (gap between candle 0 low and candle 2 high)
+// Bearish FVG: high[0] < low[2]
+
+bull_fvg = low > high[2]
+bear_fvg = high < low[2]
+
+// ── MARKET STRUCTURE SHIFT (MSS) ─────────────────────────
+// Simplified MSS: price breaks above/below recent swing
+swing_high = ta.highest(high, 10)[1]
+swing_low  = ta.lowest(low,   10)[1]
+
+bull_mss = close > swing_high
+bear_mss = close < swing_low
+
+// ── HTF BIAS (EMA 50/200) ────────────────────────────────
+ema50  = ta.ema(close, 50)
+ema200 = ta.ema(close, 200)
+htf_bull = ema50 > ema200
+htf_bear = ema50 < ema200
+
+// ── SIGNAL CONDITIONS ─────────────────────────────────────
+long_signal  = in_sb and bull_fvg and bull_mss and htf_bull
+short_signal = in_sb and bear_fvg and bear_mss and htf_bear
+
+// ── PLOTS ─────────────────────────────────────────────────
+plotshape(long_signal  and show_fvg, title="LONG",  style=shape.triangleup,
+          location=location.belowbar, color=color.new(color.green, 0), size=size.normal)
+plotshape(short_signal and show_fvg, title="SHORT", style=shape.triangledown,
+          location=location.abovebar, color=color.new(color.red,   0), size=size.normal)
+
+// Silver Bullet window background
+bgcolor(show_sb_window and in_sb ? color.new(color.blue, 90) : na, title="Silver Bullet Window")
+
+// ── ALERTS ───────────────────────────────────────────────
+// Set up TradingView alert with this message template:
+// Webhook URL: https://sovereign-prime-forex.onrender.com/api/signals/live
+//
+// LONG alert message:
+// {"account_id": "dna_funded", "symbol": "{{ticker}}", "direction": "BUY", "stop_pips": 12, "session": "ICT Silver Bullet"}
+//
+// SHORT alert message:
+// {"account_id": "dna_funded", "symbol": "{{ticker}}", "direction": "SELL", "stop_pips": 12, "session": "ICT Silver Bullet"}
+
+alertcondition(long_signal,  title="🟢 LONG Signal",  message='{"account_id": "dna_funded", "symbol": "{{ticker}}", "direction": "BUY", "stop_pips": 12, "session": "ICT Silver Bullet"}')
+alertcondition(short_signal, title="🔴 SHORT Signal", message='{"account_id": "dna_funded", "symbol": "{{ticker}}", "direction": "SELL", "stop_pips": 12, "session": "ICT Silver Bullet"}')

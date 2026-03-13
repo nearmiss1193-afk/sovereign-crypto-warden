@@ -1,0 +1,8 @@
+﻿--- BTC-USD: RSI(9) Mean Reversion ---
+Trades: 957 | Trades/Day: 5.32 | Net PnL: +423.00% | Max DD: -16.00%
+
+--- ETH-USD: RSI(9) Mean Reversion ---
+Trades: 1016 | Trades/Day: 5.64 | Net PnL: +400.00% | Max DD: -17.00%
+
+--- NQ=F (Nasdaq): BB(50) Breakout ---
+Trades: 201 | Trades/Day: 1.12 | Net PnL: +3.00% | Max DD: -38.00%

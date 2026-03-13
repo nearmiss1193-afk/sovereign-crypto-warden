@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sovereign Prime — Forex Trader</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/dashboard.css" />
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+
+<!-- ── HEADER ──────────────────────────────────────────── -->
+<header class="sp-header">
+  <div class="sp-logo">
+    <span class="sp-bolt">⚡</span>
+    <div>
+      <span class="sp-title">SOVEREIGN PRIME</span>
+      <p class="subtitle">SOVEREIGN V2.9.0-DEPTH — L2 MARKET FLOW</p>
+    </div>
+  </div>
+  <div class="sp-header-status">
+    <div class="sp-status-dot" id="connDot"></div>
+    <span id="connLabel">CONNECTING...</span>
+  </div>
+  <div class="sp-header-clock">
+    <span id="etClock">ET --:--:--</span>
+    <span id="utcClock">UTC --:--:--</span>
+  </div>
+  <div class="sp-header-actions">
+    <button class="btn-stop" onclick="emergencyStop()">🔴 STOP ALL</button>
+    <button class="btn-check" onclick="checkBroker()">🔌 CHECK BROKER</button>
+  </div>
+</header>
+
+<!-- ── BRAIN 2.5 BAR ────────────────────────────────────── -->
+<div class="sp-brain-bar">
+  <div class="brain-label">
+    <span class="brain-dot"></span>
+    <strong>BRAIN 2.5</strong>
+    <span class="brain-badge" id="brainStatus">ACTIVE</span>
+  </div>
+  <div class="brain-stat"><span class="brain-stat-label">EVALS</span><span class="brain-stat-val" id="brainEvals">0</span></div>
+  <div class="brain-stat"><span class="brain-stat-label">APPROVED</span><span class="brain-stat-val" id="brainApproved">0</span></div>
+  <div class="brain-stat"><span class="brain-stat-label">RATE</span><span class="brain-stat-val" id="brainRate">0%</span></div>
+  <div class="brain-stat"><span class="brain-stat-label">THRESHOLD</span><span class="brain-stat-val">72%</span></div>
+  <div class="brain-stat"><span class="brain-stat-label">MODEL</span><span class="brain-stat-val model-tag">GPT-4.1-mini</span></div>
+  <div class="brain-live-text" id="brainLiveText">Brain 2.5: Waiting for signals...</div>
+</div>
+
+<!-- ── MAIN GRID ─────────────────────────────────────────── -->
+<div class="sp-main">
+
+  <!-- ── LEFT: ACCOUNTS + WEEKLY TRACKER ──────────────── -->
+  <div class="sp-col sp-col-left">
+
+    <!-- Weekly $3k Tracker -->
+    <div class="sp-panel panel-weekly">
+      <div class="panel-header">
+        <span class="panel-icon">📈</span>
+        <span class="panel-title">$10K EVALUATION TARGET</span>
+        <span class="weekly-badge" id="weeklyBadge">ON TRACK</span>
+      </div>
+      <div class="weekly-progress-wrap">
+        <div class="weekly-bar-bg">
+          <div class="weekly-bar-fill" id="weeklyBarFill" style="width:0%"></div>
+        </div>
+        <div class="weekly-stats-row">
+          <div class="weekly-stat">
+            <span class="ws-label">THIS WEEK</span>
+            <span class="ws-val green" id="weeklyPnl">$0.00</span>
+          </div>
+          <div class="weekly-stat">
+            <span class="ws-label">TARGET</span>
+            <span class="ws-val">$900</span>
+          </div>
+          <div class="weekly-stat">
+            <span class="ws-label">PROGRESS</span>
+            <span class="ws-val" id="weeklyPct">0%</span>
+          </div>
+          <div class="weekly-stat">
+            <span class="ws-label">DAYS LEFT</span>
+            <span class="ws-val" id="weeklyDays">--</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Accounts -->
+    <div class="sp-panel panel-accounts">
+      <div class="panel-header">
+        <span class="panel-icon">🏦</span>
+        <span class="panel-title">ACCOUNTS</span>
+        <span class="acct-badge" id="acctBadge">2 CONFIGURED</span>
+      </div>
+      <div class="accounts-list" id="accountsList">
+        <div class="acct-loading">Loading accounts...</div>
+      </div>
+    </div>
+
+    <!-- Prop Guard -->
+    <div class="sp-panel panel-propguard">
+      <div class="panel-header">
+        <span class="panel-icon">🛡️</span>
+        <span class="panel-title">PROP GUARD</span>
+        <span class="pg-badge" id="pgBadge" style="background:rgba(0,255,136,0.15);color:#00ff88">ALL CLEAR</span>
+      </div>
+
+      <!-- Guard 1: News Blackout -->
+      <div class="guard-section">
+        <div class="guard-row">
+          <span class="guard-icon">📰</span>
+          <span class="guard-label">NEWS BLACKOUT</span>
+          <span class="guard-status" id="newsGuardStatus">✅ CLEAR</span>
+        </div>
+        <div class="guard-detail" id="newsGuardDetail">No high-impact news in window</div>
+        <div class="guard-meta" id="newsGuardMeta">Mode: <span id="propFirmMode">E8</span> — ±<span id="newsBlackoutMins">5</span>min window</div>
+      </div>
+
+      <!-- Guard 2: Daily Profit Cap -->
+      <div class="guard-section">
+        <div class="guard-row">
+          <span class="guard-icon">📊</span>
+          <span class="guard-label">DAILY PROFIT CAP</span>
+          <span class="guard-status" id="capGuardStatus">✅ CLEAR</span>
+        </div>
+        <div class="guard-detail" id="capGuardDetail">Cap not yet active</div>
+        <div class="guard-meta">E8: 40% cap &nbsp;|&nbsp; DNA: 30% cap &nbsp;|&nbsp; Resets daily</div>
+      </div>
+
+      <!-- Guard 3: Daily Loss -->
+      <div class="guard-section">
+        <div class="guard-row">
+          <span class="guard-icon">💸</span>
+          <span class="guard-label">DAILY LOSS LIMIT</span>
+          <span class="guard-status" id="lossGuardStatus">✅ CLEAR</span>
+        </div>
+        <div id="propGuardList">
+          <div class="pg-loading">Loading accounts...</div>
+        </div>
+      </div>
+
+      <!-- Today's News Events -->
+      <div class="guard-section">
+        <div class="guard-row">
+          <span class="guard-icon">🗓️</span>
+          <span class="guard-label">TODAY'S NEWS</span>
+          <span class="guard-status" id="newsEventCount" style="color:#aaa">--</span>
+        </div>
+        <div class="news-events-list" id="newsEventsList">Loading...</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── CENTER: SIGNALS + TEST + MANUAL ──────────────── -->
+  <div class="sp-col sp-col-center">
+
+    <!-- Live Signals -->
+    <div class="sp-panel panel-signals">
+      <div class="panel-header">
+        <span class="panel-icon">📡</span>
+        <span class="panel-title">LIVE SIGNALS</span>
+        <span class="sig-count" id="sigCount">0</span>
+      </div>
+      <div class="signals-feed" id="signalsFeed">
+        <div class="sig-empty">Waiting for Brain 2.5 signals...</div>
+      </div>
+    </div>
+
+    <!-- Test Signal -->
+    <div class="sp-panel panel-test">
+      <div class="panel-header">
+        <span class="panel-icon">🧪</span>
+        <span class="panel-title">TEST SIGNAL</span>
+        <span class="test-badge">LIVE ORDER — 0.01 LOT</span>
+      </div>
+      <div class="test-warning">
+        ⚠️ This sends a <strong>REAL market order</strong> via TradeLocker → DNA Funded. Use 0.01 lot only. Close the position manually after.
+      </div>
+      <div class="test-row">
+        <select class="sp-select" id="testAccount">
+          <option value="e8_eval">E8 Evaluation</option>
+        </select>
+        <select class="sp-select" id="testSymbol">
+          <option value="EURUSD">EURUSD</option>
+          <option value="GBPUSD">GBPUSD</option>
+          <option value="XAUUSD">XAUUSD</option>
+          <option value="USDJPY">USDJPY</option>
+          <option value="GBPJPY">GBPJPY</option>
+          <option value="AUDUSD">AUDUSD</option>
+        </select>
+        <select class="sp-select" id="testDirection">
+          <option value="BUY">🟢 BUY</option>
+          <option value="SELL">🔴 SELL</option>
+        </select>
+        <button class="btn-fire" onclick="fireTestSignal()">🚀 FIRE TEST ORDER</button>
+      </div>
+      <div class="test-result" id="testResult" style="display:none"></div>
+    </div>
+
+    <!-- Manual Dispatch -->
+    <div class="sp-panel panel-manual">
+      <div class="panel-header">
+        <span class="panel-icon">⚡</span>
+        <span class="panel-title">MANUAL DISPATCH</span>
+      </div>
+      <div class="manual-row">
+        <select class="sp-select" id="manualAccount">
+          <option value="e8_eval">E8 Evaluation</option>
+        </select>
+        <select class="sp-select" id="manualSymbol">
+          <option value="EURUSD">EURUSD</option>
+          <option value="GBPUSD">GBPUSD</option>
+          <option value="XAUUSD">XAUUSD</option>
+          <option value="USDJPY">USDJPY</option>
+          <option value="GBPJPY">GBPJPY</option>
+        </select>
+        <select class="sp-select" id="manualDirection">
+          <option value="BUY">🟢 BUY</option>
+          <option value="SELL">🔴 SELL</option>
+        </select>
+        <input class="sp-input" id="manualStopPips" type="number" value="10" min="1" max="100" placeholder="Stop pips" />
+        <button class="btn-send" onclick="fireManualSignal()">⚡ SEND</button>
+      </div>
+      <div class="manual-result" id="manualResult" style="display:none"></div>
+    </div>
+
+  </div>
+
+  <!-- ── RIGHT: BROKER STATUS + RISK ──────────────────── -->
+  <div class="sp-col sp-col-right">
+
+    <!-- Broker Status -->
+    <div class="sp-panel panel-broker">
+      <div class="panel-header">
+        <span class="panel-icon">🔌</span>
+        <span class="panel-title">BROKER STATUS</span>
+        <span class="broker-badge" id="brokerBadge">CHECKING...</span>
+      </div>
+      <div id="brokerStatusContent">
+        <div class="broker-row">
+          <div class="broker-name">TradeLocker</div>
+          <div class="broker-status-dot" id="tlDot">●</div>
+          <div class="broker-msg" id="tlMsg">Checking...</div>
+        </div>
+        <div class="broker-info-row">
+          <span class="bi-label">TradeLocker Account</span>
+          <span class="bi-val" id="tlAcctId">—</span>
+        </div>
+        <div class="broker-info-row">
+          <span class="bi-label">Server</span>
+          <span class="bi-val" id="tlServer">—</span>
+        </div>
+      </div>
+      <button class="btn-refresh" onclick="checkBroker()">🔄 REFRESH STATUS</button>
+    </div>
+
+    <!-- Dollar-Risk Calculator -->
+    <div class="sp-panel panel-risk">
+      <div class="panel-header">
+        <span class="panel-icon">💰</span>
+        <span class="panel-title">DOLLAR-RISK SIZER</span>
+      </div>
+      <div class="risk-calc">
+        <div class="rc-row">
+          <label class="rc-label">Risk $</label>
+          <input class="sp-input rc-input" id="rcRisk" type="number" value="50" min="1" />
+        </div>
+        <div class="rc-row">
+          <label class="rc-label">Stop (pips)</label>
+          <input class="sp-input rc-input" id="rcStop" type="number" value="10" min="1" />
+        </div>
+        <div class="rc-row">
+          <label class="rc-label">Symbol</label>
+          <select class="sp-select rc-select" id="rcSymbol">
+            <option value="EURUSD">EURUSD ($10/pip)</option>
+            <option value="GBPUSD">GBPUSD ($10/pip)</option>
+            <option value="XAUUSD">XAUUSD ($10/pip)</option>
+            <option value="USDJPY">USDJPY ($9.09/pip)</option>
+            <option value="GBPJPY">GBPJPY ($9.09/pip)</option>
+          </select>
+        </div>
+        <button class="btn-calc" onclick="calcLotSize()">📐 CALCULATE</button>
+        <div class="rc-result" id="rcResult">—</div>
+      </div>
+    </div>
+
+    <!-- Sessions -->
+    <div class="sp-panel panel-sessions">
+      <div class="panel-header">
+        <span class="panel-icon">🕐</span>
+        <span class="panel-title">ICT SESSIONS</span>
+      </div>
+      <div class="sessions-list">
+        <div class="session-row" id="sess-london">
+          <span class="sess-dot">●</span>
+          <span class="sess-name">London Open</span>
+          <span class="sess-time">2:00–5:00 ET</span>
+        </div>
+        <div class="session-row" id="sess-sb-london">
+          <span class="sess-dot">●</span>
+          <span class="sess-name">Silver Bullet AM</span>
+          <span class="sess-time">3:00–4:00 ET</span>
+        </div>
+        <div class="session-row" id="sess-ny">
+          <span class="sess-dot">●</span>
+          <span class="sess-name">NY Open</span>
+          <span class="sess-time">8:00–11:00 ET</span>
+        </div>
+        <div class="session-row" id="sess-sb-ny">
+          <span class="sess-dot">●</span>
+          <span class="sess-name">Silver Bullet PM</span>
+          <span class="sess-time">10:00–11:00 ET</span>
+        </div>
+        <div class="session-row" id="sess-lc">
+          <span class="sess-dot">●</span>
+          <span class="sess-name">London Close</span>
+          <span class="sess-time">10:00–12:00 ET</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="/static/js/sovereign_core_v290.js?v=2.9.0"></script>
+</body>
+</html>

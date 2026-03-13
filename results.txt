@@ -1,0 +1,20 @@
+﻿Downloading 180 days of 1h data for EURUSD=X...
+
+[Running 6-Month Grid Search: RSI vs Bollinger Bands]
+
+TOP 10 SECONDARY STRATEGY CONFIGURATIONS (Sorted by Net PnL in R-Multiples):
+--------------------------------------------------------------------------------
+          Strategy  Params  Trades  WinRate%  Net PnL (R)  RR
+RSI Mean Reversion RSI(21)     104     41.35         25.0 2.0
+RSI Mean Reversion RSI(21)     102     30.39         22.0 3.0
+       BB Breakout  BB(20)     172     37.21         20.0 2.0
+RSI Mean Reversion RSI(21)     107     46.73         18.0 1.5
+       BB Breakout  BB(20)     268     52.61         14.0 1.0
+       BB Breakout  BB(50)     201     53.23         13.0 1.0
+       BB Breakout  BB(20)     134     26.87         10.0 3.0
+       BB Breakout  BB(50)     106     27.36         10.0 3.0
+RSI Mean Reversion RSI(14)     265     51.70          9.0 1.0
+RSI Mean Reversion RSI(14)     200     26.00          8.0 3.0
+--------------------------------------------------------------------------------
+
+Note: 'Net PnL (R)' shows the total profit if risking exactly 1% per trade.
