@@ -23,7 +23,8 @@ from src.guards.sovereign_warden import SovereignWarden
 from src.guards.prop_guards import PropGuards
 from src.utils.pip_calibrator import PipCalibrator
 from src.database.db_service import DBService
-from src.services.l2_service import L2Service
+from src.services.state_manager import StateManager
+from src.services.resend_email import SovereignMailer
 
 app = Flask(__name__, template_folder="dashboard/templates", static_folder="dashboard/static")
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "sovereign-forex-secret")
@@ -51,6 +52,11 @@ guards = PropGuards(
 warden = SovereignWarden(daily_loss_limit_pct=4.0)
 strategy = ReversionWarden(rsi_period=9, overbought=70, oversold=30)
 db = DBService()
+mailer = SovereignMailer()
+
+acc_id = os.environ.get("TRADELOCKER_ACCOUNT_ID", "2001074")
+state_manager = StateManager(tl_service, acc_id)
+state_manager.start()
 
 # ── CONFIG ───────────────────────────────────────────────────
 AUTO_TRADE = True # Force enable as soon as verified (Sovereign Directive)
@@ -101,6 +107,9 @@ def scanner_loop():
             now = datetime.utcnow()
             date_str = now.strftime("%Y-%m-%d")
             
+            # Fetch instrument cache from StateManager (0ms RAM)
+            INSTRUMENT_CACHE = state_manager.get_instruments()
+            
             # EMERGENCY DIAGNOSTIC PATCH
             print(f"[Scanner] Cycle | Token: {bool(tl_service.token)} | Cache: {len(INSTRUMENT_CACHE)}")
             token = tl_service.get_token()
@@ -108,15 +117,13 @@ def scanner_loop():
                 print(f"[Scanner] AUTH FAILED: {tl_service.last_error}")
                 time.sleep(30)
                 continue
+            
             print(f"[Scanner] Auth OK | acc_id={acc_id} | type={type(acc_id)}")
 
             if not INSTRUMENT_CACHE:
-                insts = tl_service.get_instruments(acc_id)
-                for inst in insts:
-                    sym = inst.get("symbol")
-                    if sym in SYMBOLS:
-                        INSTRUMENT_CACHE[sym] = (inst.get("id"), inst.get("routeId"))
-                print(f"[Scanner] Cached {len(INSTRUMENT_CACHE)} target symbols")
+                print("[Scanner] Awaiting RAM Cache Instrument Sync...")
+                time.sleep(5)
+                continue
 
             # Check News Guard
             news_status = guards.is_news_blackout(now)
@@ -131,9 +138,26 @@ def scanner_loop():
                     df = pd.DataFrame(candles_raw)
                     setup = strategy.detect_setup(df, symbol=symbol)
                     
+                    # ── STREAM OF CONSCIOUSNESS TO TERMINAL ──
+                    if len(df) > 0:
+                        last_close = df.iloc[-1]['Close']
+                        # Re-calculate RSI for streaming purely for display
+                        delta = df['Close'].diff()
+                        up = delta.clip(lower=0)
+                        down = -1 * delta.clip(upper=0)
+                        ma_up = up.rolling(14).mean()
+                        ma_down = down.rolling(14).mean()
+                        rs = ma_up / ma_down
+                        rsi_val = 100 - (100 / (1 + rs)).iloc[-1]
+                        
+                        socketio.emit("terminal_log", {
+                            "message": f"[{symbol}] Price: {last_close:.2f} | RSI: {rsi_val:.1f} | Awaiting Breakout...",
+                            "type": "info"
+                        })
+                    
                     if setup:
-                        # ── SOVEREIGN WARDEN INTERCEPT LAYER ──
-                        open_positions = tl_service.get_open_positions(acc_id)
+                        # ── SOVEREIGN WARDEN INTERCEPT LAYER (0ms RAM READ) ──
+                        open_positions = state_manager.get_open_positions()
                         is_safe_hedge, hedge_reason = warden.check_hedge_violation(
                             target_symbol=symbol,
                             target_direction=setup['type'],
@@ -143,9 +167,11 @@ def scanner_loop():
                         
                         if not is_safe_hedge:
                             print(f"[WARDEN BLOCK] {hedge_reason}")
+                            socketio.emit("terminal_log", {"message": f"[WARDEN BLOCK] {hedge_reason}", "type": "error"})
+                            mailer.notify_warden_block("Crypto Warden", symbol, setup['type'], hedge_reason)
                             continue
                             
-                        account_state = tl_service.get_account_state(acc_id)
+                        account_state = state_manager.get_account_state()
                         is_safe_dd, dd_reason = warden.check_drawdown_violation(
                             account_state=account_state,
                             eod_balance=ACCOUNTS["e8_eval"]["balance"]
@@ -153,6 +179,11 @@ def scanner_loop():
                         
                         if not is_safe_dd:
                             print(f"[WARDEN BLOCK] {dd_reason}")
+                            socketio.emit("terminal_log", {"message": f"CRITICAL: {dd_reason}", "type": "error"})
+                            mailer.notify_emergency("Crypto Warden", dd_reason)
+                            # Halt trading entirely to prevent further DD logic loops
+                            global AUTO_TRADE
+                            AUTO_TRADE = False
                             continue
 
                         socketio.emit("new_signal", {
@@ -214,6 +245,8 @@ def scanner_loop():
                             )
                             if res.get("success"):
                                 print(f"[WARDEN] Successfully executed Grid Order on {symbol}")
+                                socketio.emit("terminal_log", {"message": f"🟢 [EXECUTION] FIRED {setup['type']} on {symbol} at {entry_price}", "type": "success"})
+                                mailer.notify_trade_fired("Crypto Warden", symbol, setup["type"], setup["entry"], risk_usd)
                                 db.save_trade(res)
                 except Exception as sym_err:
                     print(f"[Scanner] Error on {symbol}: {sym_err}")
@@ -408,6 +441,8 @@ def emergency_stop():
         acc["enabled"] = False
         acc["halted"] = True
     print("⛔ EMERGENCY STOP TRIGGERED")
+    socketio.emit("terminal_log", {"message": "⛔ EMERGENCY STOP TRIGGERED BY USER", "type": "error"})
+    mailer.notify_emergency("Crypto Warden", "User-Triggered Dashboard Emergency Stop")
     socketio.emit("emergency_stop")
     return jsonify({"success": True})
 

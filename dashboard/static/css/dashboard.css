@@ -337,12 +337,13 @@ html, body {
 .pg-row-label { color: var(--text-muted); }
 .pg-row-val { font-family: var(--font-mono); font-weight: 600; }
 
-/* ── SIGNALS FEED ───────────────────────────────────────── */
+/* ── LIVE SIGNALS / TERMINAL STREAM ─────────────────────── */
 .panel-signals {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
+  background: #020617; /* Deep terminal black */
 }
 .sig-count {
   margin-left: auto;
@@ -359,9 +360,24 @@ html, body {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  padding: 8px;
   min-height: 0;
 }
+.terminal-stream {
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.term-line {
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.02);
+  word-break: break-all;
+}
+.term-line.info { color: #94a3b8; }
+.term-line.success { color: #10b981; font-weight: 600; }
+.term-line.error { color: #ef4444; font-weight: 600; background: rgba(239, 68, 68, 0.05); padding-left: 4px; border-left: 2px solid #ef4444;}
 .sig-empty { color: var(--text-muted); font-size: 11px; text-align: center; padding: 20px; }
 
 .sig-card {

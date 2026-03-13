@@ -129,6 +129,32 @@ socket.on("emergency_stop", () => {
   alert("⛔ EMERGENCY STOP — All accounts halted");
 });
 
+// ── STREAM OF CONSCIOUSNESS TERMINAL ──────────────────────
+socket.on("terminal_log", data => {
+  const stream = document.getElementById("terminalStream");
+  if (!stream) return;
+
+  const msgClass = data.type === "success" ? "success" : data.type === "error" ? "error" : "info";
+  const now = new Date().toLocaleTimeString("en-US", { hour12: false });
+  
+  const line = document.createElement("div");
+  line.className = `term-line ${msgClass}`;
+  line.innerText = `[${now}] ${data.message}`;
+  
+  stream.appendChild(line);
+  
+  // Auto-scroll to bottom
+  const feed = document.getElementById("signalsFeed");
+  if (feed) {
+    feed.scrollTop = feed.scrollHeight;
+  }
+  
+  // Keep memory clean (max 50 lines)
+  while (stream.children.length > 50) {
+    stream.removeChild(stream.firstChild);
+  }
+});
+
 // ── INITIAL DATA FETCH ────────────────────────────────────
 fetch("/api/initial-data")
   .then(r => r.json())
