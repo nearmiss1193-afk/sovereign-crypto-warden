@@ -6,8 +6,11 @@ class PipCalibrator:
         Standard Forex: 0.0001
         JPY Pairs: 0.01
         Gold/Silver: 0.1 / 0.01
+        Crypto: 1.0 (1 pip = $1 move)
         """
         s = symbol.upper()
+        if "BTC" in s or "ETH" in s:
+            return 1.0
         if "JPY" in s:
             return 0.01
         if "XAU" in s:

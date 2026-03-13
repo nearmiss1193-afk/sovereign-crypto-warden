@@ -58,14 +58,14 @@ class ReversionWarden:
                 "type": "BUY",
                 "confidence_reason": f"RSI({self.rsi_period}) mathematically oversold at {round(rsi_value, 2)}",
                 "entry": close_price,
-                "sl_pips": 200 # Placeholder baseline, wsgi scaler calculates dynamic
+                "sl_pips": 1500 if "BTC" in symbol else 100 # $1500 Volatility SL for BTC, $100 SL for ETH
             }
         elif rsi_value >= self.overbought:
             setup = {
                 "type": "SELL",
                 "confidence_reason": f"RSI({self.rsi_period}) mathematically overbought at {round(rsi_value, 2)}",
                 "entry": close_price,
-                "sl_pips": 200
+                "sl_pips": 1500 if "BTC" in symbol else 100
             }
             
         return setup

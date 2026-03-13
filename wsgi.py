@@ -98,12 +98,11 @@ def scanner_loop():
             # Check DNS health occasionally
             tl_service.check_dns()
             
-            window_name = strategy.is_in_silver_bullet_window()
             now = datetime.utcnow()
             date_str = now.strftime("%Y-%m-%d")
             
-            # EMERGENCY DIAGNOSTIC PATCH — add after tl_service.check_dns() line
-            print(f"[Scanner] Cycle | Token: {bool(tl_service.token)} | Cache: {len(INSTRUMENT_CACHE)} | Window: {window_name}")
+            # EMERGENCY DIAGNOSTIC PATCH
+            print(f"[Scanner] Cycle | Token: {bool(tl_service.token)} | Cache: {len(INSTRUMENT_CACHE)}")
             token = tl_service.get_token()
             if not token:
                 print(f"[Scanner] AUTH FAILED: {tl_service.last_error}")
@@ -214,7 +213,7 @@ def scanner_loop():
                                 take_profit=tp_price
                             )
                             if res.get("success"):
-                                strategy.mark_session_executed(symbol, window_name, date_str)
+                                print(f"[WARDEN] Successfully executed Grid Order on {symbol}")
                                 db.save_trade(res)
                 except Exception as sym_err:
                     print(f"[Scanner] Error on {symbol}: {sym_err}")
