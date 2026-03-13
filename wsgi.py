@@ -53,7 +53,8 @@ guards = PropGuards(
 )
 
 warden = SovereignWarden(daily_loss_limit_pct=4.0)
-strategy = ReversionWarden(rsi_period=9, overbought=70, oversold=30)
+# Loosened RSI parameters (40/60) from strict (30/70) to force trades
+strategy = ReversionWarden(rsi_period=9, overbought=60, oversold=40)
 db = DBService()
 mailer = SovereignMailer()
 
